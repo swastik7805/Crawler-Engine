@@ -1,4 +1,6 @@
+# Chronicle Crawler
 
+```
 chronicle-crawler/
 ├── src/
 │   ├── config/seeds.ts          → 22 curated Web3 sources (3 priority tiers)
@@ -14,3 +16,4 @@ chronicle-crawler/
 │   │   └── indexer.ts           → Transactional upsert + hash-based skip
 │   ├── crawler.ts               → PQueue global(10) + per-domain(2, 1.5s)
 │   └── index.ts                 → Entry + graceful SIGTERM drain
+```
