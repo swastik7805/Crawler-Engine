@@ -1,0 +1,23 @@
+{
+  "name": "web3-crawler",
+  "version": "1.0.0",
+  "description": "Web3-based-crawler that scrapes the web3 related domain websites and store it in postGres index",
+  "keywords": [
+    "crawler",
+    "web3",
+    "postGres",
+    "inverted-b-tree",
+    "ai"
+  ],
+  "license": "ISC",
+  "author": "Swastik Sharma",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.9.3"
+  }
+}
