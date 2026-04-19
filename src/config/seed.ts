@@ -1,11 +1,3 @@
-/**
- * Curated seed sources for The Chronicle's Web3 domain corpus.
- * Priority tiers:
- *   1 — Canonical references (EIPs, official docs)
- *   2 — High-signal security research and audit blogs
- *   3 — Community content, newsletters, forums
- */
-
 export interface SeedSource {
   url: string;
   domain: string;
