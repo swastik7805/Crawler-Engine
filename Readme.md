@@ -19,17 +19,42 @@ crawler/
 ```
 
 # Schema
+![alt text](./static/schema.png)
+
+# Hybrid Search - Reciprocal Rank Fusion
 
 ```
    Search Architecture — Three-Strategy Hybrid:
-   ┌─────────────────────────────────────────────────────────────────┐
-   │  Strategy 1: Lexical   → content_tsv (tsvector) + GIN index    │
-   │  Strategy 2: Semantic  → embedding (vector)    + HNSW index    │
-   │  Strategy 3: Fuzzy     → content (text)        + GIN trgm idx  │
-   └─────────────────────────────────────────────────────────────────┘
-  
-   NOTE: GIN (tsvector), HNSW (vector), and GIN (trgm) indexes are
-   intentionally defined in the raw SQL migration:
+   ┌────────────────────────────────────────────────────────────────────────┐
+   │  Strategy 1: Lexical   → content_tsv (Text-Search-vector) + GIN index  │
+   │  Strategy 2: Semantic  → embedding (vector)    + HNSW index            │
+   │  Strategy 3: Fuzzy     → content (text)        + GIN trigram index     │
+   └────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1. Lexical Search (The "Keyword" Engine)
+*   **Technology**: PostgreSQL `tsvector` + GIN Index.
+*   **Strength**: High precision for exact technical terms (e.g., "ERC-20", "Solidity", "EIP-1559").
+*   **How it works**: It breaks text into tokens and "stems" them (e.g., "crawling" becomes "crawl"). It understands the grammar of the document.
+
+### 2. Semantic Search (The "Brain")
+*   **Technology**: `pgvector` + HNSW (Hierarchical Navigable Small World) Index.
+*   **Strength**: Understands intent and synonyms.
+*   **How it works**: Converts text into dense 1536-dimension vectors. It can find a result for "How to move funds" even if the document only mentions "ETH transfer" because the *meaning* is similar.
+
+### 3. Fuzzy Search (The "Safety Net")
+*   **Technology**: `pg_trgm` (Trigrams) + GIN Index.
+*   **Strength**: Typo tolerance and partial matching.
+*   **How it works**: Breaks words into 3-character chunks. If a user types "Ethreum" (typo), the trigram index will still match it to "Ethereum" with high similarity.
+
+###  Why Hybrid?
+Pure vector search can sometimes be "vague," and pure keyword search is too "rigid." By combining all three using **Reciprocal Rank Fusion (RRF)**, we get the best of all worlds:
+- **Speed** of Lexical.
+- **Intelligence** of Semantic.
+- **Resilience** of Fuzzy.
+
+> [!NOTE]
+> All indexes are intentionally defined in the raw SQL migrations to ensure maximum performance and native PostgreSQL features that ORMs sometimes abstract away.
   
    Drizzle ORM cannot express HNSW WITH parameters, tsvector GENERATED
    ALWAYS AS columns, or trigram-specific GIN operator classes natively.
