@@ -67,6 +67,14 @@ crawler/
 8. With the help of links,crawler aage badta hai
 ```
 
+#### Chunker Flow
+```
+1. Split text into sentences
+2. Group sentences into chunks of 300–500 words
+3. Maintain 1–2 sentence overlap between adjacent chunks
+4. Flush at paragraph boundaries when near target word count
+5. Discard trailing fragments under 50 words
+```
 
 ## Normal DB index + GIN + HNSW
 ![alt text](./static/image.png)

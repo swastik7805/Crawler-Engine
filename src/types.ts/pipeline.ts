@@ -12,3 +12,9 @@ export interface ExtractedContent {
   bodyText: string;
   internalLinks: string[];
 }
+
+export interface TextChunk {
+  content: string;
+  wordCount: number;
+  chunkIndex: number;
+}
