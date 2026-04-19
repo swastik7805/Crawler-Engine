@@ -47,6 +47,9 @@ crawler/
 7. Indexes make it searchable
 ```
 
+
+## Normal DB index + GIN + HNSW
 ![alt text](image.png)
 
+## DB Triggers
 ![alt text](image-1.png)
