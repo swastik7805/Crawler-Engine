@@ -1,16 +1,23 @@
-import { eq } from 'drizzle-orm';
-import { db } from '../db/client.js';
-import { crawlSources, documents, chunks } from '../db/schema.js';
-;import { logger } from '../utils/logger.js';
-import { ExtractedContent, IndexDocumentParams, IndexResult, TextChunk } from '../types.ts/pipeline.js';
-import { computeHash } from '../utils/indexing.js';
+import { eq } from "drizzle-orm";
+import { db } from "../db/client.js";
+import { crawlSources, documents, chunks } from "../db/schema.js";
+import { logger } from "../utils/logger.js";
+import {
+  ExtractedContent,
+  IndexDocumentParams,
+  IndexResult,
+  TextChunk,
+} from "../types/pipeline.js";
+import { computeHash } from "../utils/indexing.js";
 
 /**
  * Embeddings:
  *   Passed in as a pre-computed parallel array. The embedding worker (separate
  *   service) should call updateChunkEmbedding() to backfill NULL embeddings.
  */
-export async function indexDocument(params: IndexDocumentParams): Promise<IndexResult> {
+export async function indexDocument(
+  params: IndexDocumentParams,
+): Promise<IndexResult> {
   const { sourceId, url, extracted, textChunks, embeddings } = params;
   if (textChunks.length === 0) {
     logger.warn(`No chunks produced for ${url} — skipping index`);
@@ -20,8 +27,10 @@ export async function indexDocument(params: IndexDocumentParams): Promise<IndexR
   const contentHash = computeHash(extracted.bodyText);
 
   return db.transaction(async (tx) => {
-    // 1. Upsert document 
-    const [doc] = await tx.insert(documents).values({
+    // 1. Upsert document
+    const [doc] = await tx
+      .insert(documents)
+      .values({
         sourceId,
         url,
         title: extracted.title,
@@ -56,17 +65,19 @@ export async function indexDocument(params: IndexDocumentParams): Promise<IndexR
     // Simplified: always re-chunk on update (previousHash mismatch).
     // On identical content, skip to avoid HNSW churn.
 
-    // 3. Delete stale chunks (idempotent re-crawl) 
+    // 3. Delete stale chunks (idempotent re-crawl)
     const deleted = await tx
       .delete(chunks)
       .where(eq(chunks.documentId, doc.id))
       .returning({ id: chunks.id });
 
     if (deleted.length > 0) {
-      logger.debug(`Deleted ${deleted.length} stale chunks for document ${doc.id}`);
+      logger.debug(
+        `Deleted ${deleted.length} stale chunks for document ${doc.id}`,
+      );
     }
 
-    // 4. Bulk insert new chunks 
+    // 4. Bulk insert new chunks
     const chunkValues = textChunks.map((chunk, i) => {
       const embedding = embeddings[i];
       return {
@@ -87,9 +98,9 @@ export async function indexDocument(params: IndexDocumentParams): Promise<IndexR
 
     logger.info(
       `Indexed document ${doc.id} | ` +
-      `${textChunks.length} chunks | ` +
-      `${embeddings.filter((e) => e.length > 0).length} embeddings | ` +
-      `URL: ${url}`
+        `${textChunks.length} chunks | ` +
+        `${embeddings.filter((e) => e.length > 0).length} embeddings | ` +
+        `URL: ${url}`,
     );
 
     return {
@@ -111,14 +122,10 @@ export async function indexDocument(params: IndexDocumentParams): Promise<IndexR
  */
 export async function updateChunkEmbedding(
   chunkId: number,
-  embedding: number[]
+  embedding: number[],
 ): Promise<void> {
-  await db
-    .update(chunks)
-    .set({ embedding })
-    .where(eq(chunks.id, chunkId));
+  await db.update(chunks).set({ embedding }).where(eq(chunks.id, chunkId));
 }
-
 
 /**
  * Updates the crawl status of a seed source.
@@ -126,8 +133,8 @@ export async function updateChunkEmbedding(
  */
 export async function markSourceStatus(
   sourceId: number,
-  status: 'completed' | 'failed' | 'skipped',
-  errorMessage?: string
+  status: "completed" | "failed" | "skipped",
+  errorMessage?: string,
 ): Promise<void> {
   await db
     .update(crawlSources)
