@@ -1,10 +1,10 @@
-import 'dotenv/config';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
-import * as schema from './schema.js';
+import "dotenv/config";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import * as schema from "./schema.js";
 
 if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not set');
+  throw new Error("DATABASE_URL environment variable is not set");
 }
 
 /**
@@ -22,8 +22,8 @@ export const pool = new Pool({
   connectionTimeoutMillis: 3_000,
 });
 
-pool.on('error', (err) => {
-  console.error('[DB] Unexpected pool error:', err.message);
+pool.on("error", (err) => {
+  console.error("[DB] Unexpected pool error:", err.message);
 });
 
 export const db = drizzle(pool, { schema });
