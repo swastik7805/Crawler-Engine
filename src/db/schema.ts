@@ -1,31 +1,26 @@
-import {
-  pgTable,
-  pgEnum,
-  serial,
-  text,
-  integer,
-  boolean,
-  timestamp,
-  uniqueIndex,
-  index,
-  customType,
-} from 'drizzle-orm/pg-core';
+import {pgTable,pgEnum,serial,text,integer,boolean,timestamp,uniqueIndex,index,customType} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-// ─── Custom PostgreSQL Types ──────────────────────────────────────────────────
 
-/**
- * pgvector `vector(n)` type.
- * Dimensions: 1536 is the default (compatible with OpenAI ada-002 and
- * nomic-embed-text-v1.5). Override per-column via the config object.
- *
- * Driver serialization: PostgreSQL expects the string literal "[1.0,2.0,...]"
- */
-const vector = customType<{
+
+interface Vector{
   data: number[];
   config: { dimensions: number };
-  driverData: string;
-}>({
+  driverData: string
+}
+
+interface TSVector{
+  data: string;
+  driverData: string
+}
+
+// -------- Custom PostgreSQL type -------------
+
+/**
+ *  pgvector `vector(n)` type.
+ *  Dimensions: 1536 is the default.
+ */
+const vector = customType<Vector>({
   dataType(config) {
     const dim = config?.dimensions ?? 1536;
     return `vector(${dim})`;
@@ -49,14 +44,19 @@ const vector = customType<{
  *   meta_keywords → weight 'B'
  *   content      → weight 'C'
  */
-const tsvector = customType<{ data: string; driverData: string }>({
+const tsvector = customType<TSVector>({
   dataType() {
     return 'tsvector';
   },
+  toDriver(value: string): string {
+    return value;
+  },
+  fromDriver(value: string): string {
+    return value;
+  },
 });
 
-// ─── Enums ────────────────────────────────────────────────────────────────────
-
+// -------- Enums --------
 export const crawlStatusEnum = pgEnum('crawl_status', [
   'pending',     // Queued, not yet started
   'in_progress', // Actively being crawled
@@ -65,111 +65,61 @@ export const crawlStatusEnum = pgEnum('crawl_status', [
   'skipped',     // Intentionally excluded (robots.txt, non-HTML, etc.)
 ]);
 
-// ─── Tables ───────────────────────────────────────────────────────────────────
+// ----- Tables -----------
 
 /**
- * crawl_sources
  * Seed URLs and their crawl configuration. Acts as the root of the
  * crawl queue. Each source owns a subtree of `documents`.
  */
-export const crawlSources = pgTable(
-  'crawl_sources',
+export const crawlSources = pgTable('crawl_sources',
   {
     id: serial('id').primaryKey(),
-
-    /** Canonical starting URL for this source (e.g., https://eips.ethereum.org) */
     url: text('url').notNull(),
-
-    /** Hostname, used for per-domain rate limiting in the crawler */
     domain: text('domain').notNull(),
-
-    /**
-     * Crawl priority: 1 = highest, 10 = lowest.
-     * Official docs and EIPs get priority 1; community blogs get 3+.
-     */
-    priority: integer('priority').notNull().default(5),
-
-    /** Current state of this source in the crawl lifecycle */
+    priority: integer('priority').notNull().default(5), // Official docs and EIPs get priority 1; community blogs get 3+.
     status: crawlStatusEnum('status').notNull().default('pending'),
-
-    /** Populated on terminal failure for debugging */
     errorMessage: text('error_message'),
-
-    /** How many link-hops to follow from the root URL */
-    crawlDepth: integer('crawl_depth').notNull().default(2),
-
-    /** Whether to respect robots.txt for this source */
-    respectRobots: boolean('respect_robots').notNull().default(true),
-
+    crawlDepth: integer('crawl_depth').notNull().default(2), // Link hops to follow from the root_url
+    respectRobots: boolean('respect_robots').notNull().default(true), // Whether to respect robots.txt for this source
     lastCrawledAt: timestamp('last_crawled_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
   },
   (t) => ({
-    /** Prevents duplicate seeds */
-    urlUniqueIdx: uniqueIndex('crawl_sources_url_unique_idx').on(t.url),
-    /** Fast lookup by domain for rate-limit enforcement */
-    domainIdx: index('crawl_sources_domain_idx').on(t.domain),
-    /** Queue-style polling: WHERE status = 'pending' ORDER BY priority */
-    statusPriorityIdx: index('crawl_sources_status_priority_idx').on(t.status, t.priority),
+    urlUniqueIdx: uniqueIndex('crawl_sources_url_unique_idx').on(t.url), // Prevent duplicate URLs
+    domainIdx: index('crawl_sources_domain_idx').on(t.domain), // Fast lookup in domain
+    // Composite index
+    statusPriorityIdx: index('crawl_sources_status_priority_idx').on(t.status, t.priority), // Queue-style polling: WHERE status = 'pending' ORDER BY priority
   })
 );
 
 /**
- * documents
  * One row per successfully crawled HTML page.
  * Stores page-level metadata; the actual search-indexed content lives in `chunks`.
- *
- * Relationship: crawl_sources 1 → N documents 1 → N chunks
  */
-export const documents = pgTable(
-  'documents',
+export const documents = pgTable('documents',
   {
     id: serial('id').primaryKey(),
-
-    /** FK to the seed source that initiated this crawl path */
-    sourceId: integer('source_id').references(() => crawlSources.id, {
-      onDelete: 'cascade',
-    }),
-
-    /** Final URL after redirect resolution */
+    sourceId: integer('source_id').references(()=>crawlSources.id, {onDelete: 'cascade'}),
     url: text('url').notNull(),
-
     title: text('title'),
     metaDescription: text('meta_description'),
-
-    /**
-     * TEXT[] — parsed from <meta name="keywords">.
-     * Stored as an array for structured filtering in future faceted search.
-     */
     metaKeywords: text('meta_keywords').array(),
-
-    /** Resolved canonical URL from <link rel="canonical"> if present */
     canonicalUrl: text('canonical_url'),
-
-    /**
-     * MD5 hash of the extracted body text.
-     * Used to skip re-indexing unchanged pages on subsequent crawls.
-     */
+    // MD5 hash of the extracted body text.Used to skip re-indexing unchanged pages on subsequent crawls.
     contentHash: text('content_hash'),
-
     crawledAt: timestamp('crawled_at', { withTimezone: true }).notNull().default(sql`now()`),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
   },
   (t) => ({
-    /** Primary deduplication guard — one row per canonical URL */
     urlUniqueIdx: uniqueIndex('documents_url_unique_idx').on(t.url),
-    /** Used to detect unchanged content and skip re-chunking */
-    contentHashIdx: index('documents_content_hash_idx').on(t.contentHash),
-    /** Supports JOIN with crawl_sources */
+    contentHashIdx: index('documents_content_hash_idx').on(t.contentHash), // Used to detect unchanged content and skip re-chunking
     sourceIdIdx: index('documents_source_id_idx').on(t.sourceId),
   })
 );
 
 /**
- * chunks
  * THE CORE SEARCH TABLE. One row = one 300–500 word segment of a document.
- *
  * This single table drives all three search strategies:
  *
  *   ① Lexical  (80% — fast links)
@@ -188,29 +138,16 @@ export const documents = pgTable(
  *      Query  : content % $query  (similarity threshold)
  *               or content ILIKE '%ethereum%' for partial match
  */
-export const chunks = pgTable(
-  'chunks',
+export const chunks = pgTable('chunks',
   {
     id: serial('id').primaryKey(),
-
-    /** FK to parent document; CASCADE DELETE keeps DB clean on re-crawl */
-    documentId: integer('document_id')
-      .notNull()
-      .references(() => documents.id, { onDelete: 'cascade' }),
-
-    // ── Denormalized metadata (avoids JOIN on every search hit) ──────────────
-    /** Source URL — returned directly to frontend as the search result link */
+    documentId: integer('document_id').notNull().references(() => documents.id, { onDelete: 'cascade' }),
+    // Search → must be FAST → avoid JOIN
     url: text('url').notNull(),
-    /** Page title — rendered as the blue link headline */
     title: text('title'),
-    /** Inherited from document for keyword-based boosting */
     metaKeywords: text('meta_keywords').array(),
-
-    // ── Content ──────────────────────────────────────────────────────────────
-    /** Sequential position of this chunk within its parent document */
-    chunkIndex: integer('chunk_index').notNull(),
-    /** The 300–500 word text segment — source for all three search strategies */
-    content: text('content').notNull(),
+    chunkIndex: integer('chunk_index').notNull(), // Sequential position of this chunk within its parent document
+    content: text('content').notNull(), // The 300–500 word text segment — source for all three search strategies
     wordCount: integer('word_count').notNull(),
 
     // ── Strategy 1: Lexical ──────────────────────────────────────────────────
@@ -262,11 +199,6 @@ export const chunks = pgTable(
   })
 );
 
-// ─── Inferred Types ───────────────────────────────────────────────────────────
-
 export type CrawlSource    = typeof crawlSources.$inferSelect;
-export type NewCrawlSource = typeof crawlSources.$inferInsert;
 export type Document       = typeof documents.$inferSelect;
-export type NewDocument    = typeof documents.$inferInsert;
 export type Chunk          = typeof chunks.$inferSelect;
-export type NewChunk       = typeof chunks.$inferInsert;

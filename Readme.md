@@ -35,3 +35,14 @@ crawler/
    ALWAYS AS columns, or trigram-specific GIN operator classes natively.
    The raw migration is the source of truth for those constructs.
 ```
+
+# Crawler Flow
+```
+1. Crawl page
+2. Store in documents
+3. Split into chunks
+4. Insert into chunks table
+5. Trigger generates tsvector
+6. Background worker generates embedding
+7. Indexes make it searchable
+```
