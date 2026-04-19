@@ -1,10 +1,7 @@
 -- =============================================================================
--- Migration: 0001_extensions_and_indexes.sql
 -- The Chronicle — PostgreSQL Search Infrastructure
 --
 -- Run AFTER Drizzle's generated DDL migration (which creates the tables).
--- Command: pnpm db:seed-extensions
---
 -- This file owns everything Drizzle ORM cannot express natively:
 --   1. PostgreSQL extensions (vector, pg_trgm, unaccent)
 --   2. tsvector BEFORE trigger (weighted lexical index maintenance)
@@ -14,6 +11,20 @@
 --   6. GIN trigram on title      (Fuzzy title matching)
 -- =============================================================================
 
+
+-- =============================================================================
+-- PART 1: Extensions
+-- =============================================================================
+
+-- pgvector: enables the vector(n) type and HNSW / IVFFlat index methods
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- pg_trgm: enables trigram similarity functions and gin_trgm_ops operator class
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- unaccent: strips diacritics during tsvector construction
+-- ("Vitalik Butérin" matches "Buterin")
+CREATE EXTENSION IF NOT EXISTS unaccent;
 
 -- =============================================================================
 -- PART 2: tsvector Auto-Update Trigger (Strategy 1 — Lexical)

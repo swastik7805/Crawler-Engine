@@ -1,19 +1,3 @@
-
--- =============================================================================
--- PART 1: Extensions
--- =============================================================================
-
--- pgvector: enables the vector(n) type and HNSW / IVFFlat index methods
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- pg_trgm: enables trigram similarity functions and gin_trgm_ops operator class
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-
--- unaccent: strips diacritics during tsvector construction
--- ("Vitalik Butérin" matches "Buterin")
-CREATE EXTENSION IF NOT EXISTS unaccent;
-
-
 DO $$ BEGIN
  CREATE TYPE "public"."crawl_status" AS ENUM('pending', 'in_progress', 'completed', 'failed', 'skipped');
 EXCEPTION

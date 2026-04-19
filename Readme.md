@@ -46,3 +46,5 @@ crawler/
 6. Background worker generates embedding
 7. Indexes make it searchable
 ```
+
+![alt text](image.png)
