@@ -3,19 +3,29 @@
 ```
 crawler/
 ├── src/
-│   ├── config/seeds.ts          → 22 curated Web3 sources (3 priority tiers)
+│   ├── config/seed.ts           → 22 curated Web3 sources (3 priority tiers)
 │   ├── db/
 │   │   ├── schema.ts            → Drizzle schema (3 tables, custom vector/tsvector types)
-│   │   ├── client.ts            → Pool (max 20, 30s idle timeout)
+│   │   └── client.ts            → Pool + validateConnection utility
 │   │   └── migrations/
 │   │       └── 0001_...sql      → Extensions + trigger + all 3 search indexes
+│   ├── queues/
+│   │   ├── connection.ts        → Shared ioredis instance for BullMQ
+│   │   ├── crawl.queue.ts       → CrawlQueue definition (URL Frontier)
+│   │   └── process.queue.ts     → ProcessQueue definition (Extract & Index)
+│   ├── workers/
+│   │   ├── fetcher.worker.ts    → Distributed I/O-bound fetcher (BullMQ)
+│   │   └── processor.worker.ts  → Distributed CPU-bound processor (BullMQ)
 │   ├── pipeline/
-│   │   ├── fetcher.ts           → Retry (3x, exp backoff) + robots.txt cache
-│   │   ├── extractor.ts         → Cheerio noise stripping + link discovery
-│   │   ├── chunker.ts           → 300-500w sentence-aligned + 2-sentence overlap
-│   │   └── indexer.ts           → Transactional upsert + hash-based skip
-│   ├── crawler.ts               → PQueue global(10) + per-domain(2, 1.5s)
-│   └── index.ts                 → Entry + graceful SIGTERM drain
+│   │   ├── fetcher.ts           → Fetch logic with retry & robots.txt
+│   │   ├── extractor.ts         → HTML noise stripping & link discovery
+│   │   ├── chunker.ts           → Sentence-aligned text chunking
+│   │   └── indexer.ts           → Transactional DB indexing
+│   ├── utils/
+│   │   ├── redis.ts             → Global deduplication (Redis SADD)
+│   │   └── logger.ts            → Winston logger configuration
+│   ├── orchestrator.ts          → Distributed seed dispatcher
+│   └── index.ts                 → Multi-service entry point (CLI args)
 ```
 
 # Schema
@@ -60,6 +70,52 @@ Pure vector search can sometimes be "vague," and pure keyword search is too "rig
    ALWAYS AS columns, or trigram-specific GIN operator classes natively.
    The raw migration is the source of truth for those constructs.
 
+
+# Distributed Architecture
+
+The crawler is built on a modular, distributed architecture that allows for horizontal scaling.
+
+```mermaid
+graph TD
+    subgraph "Orchestrator Node"
+        A[Orchestrator]
+    end
+
+    subgraph "Messaging Layer (Redis)"
+        B[(Crawl Queue)]
+        C[(Process Queue)]
+        D[(Visited Set)]
+    end
+
+    subgraph "Worker Cluster"
+        E[Fetcher Worker 1]
+        F[Fetcher Worker 2]
+        G[Processor Worker 1]
+        H[Processor Worker 2]
+    end
+
+    subgraph "Storage & indexing"
+        I[(PostgreSQL)]
+    end
+
+    A -->|Push Root URLs| B
+    E -->|Fetch HTML| C
+    E -->|Enqueues Sub-Links| B
+    F -->|Fetch HTML| C
+    B --- E
+    B --- F
+    C --- G
+    C --- H
+    G -->|Extract & Index| I
+    H -->|Extract & Index| I
+    E & F & G & H <-->|Deduplication| D
+```
+
+### Components
+- **Orchestrator**: Initial seed dispatcher. It reads from the database and kicks off the crawl.
+- **Fetcher Worker**: I/O-bound service specialized in downloading content and checking `robots.txt`.
+- **Processor Worker**: CPU-bound service that extracts data, expands links, and indexes metadata/chunks into PostgreSQL.
+- **BullMQ + Redis**: The backbone that handles retries, backoff, and work distribution across nodes.
 
 # Pipeline Flow
 
