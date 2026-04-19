@@ -57,11 +57,14 @@ crawler/
 
 #### Extractor Flow
 ```
-1. Strip all noise elements
-2. Prefer high-signal content containers (article, main, .markdown-body)
-3. Fall back to <body> if no container matches
-4. Normalise whitespace for clean chunk input
-5. Collect internal links for crawl queue expansion
+1. Raw HTML
+2. Strip all noise elements
+3. MetaData extraction (title,keywords,description,canonical url)
+4. Extract high-signal content  (article, main, .markdown-body)
+5. Fall back to <body> if no specific high-signal-container matches
+6. Normalise whitespace for clean chunk input
+7. Collect internal links for crawl queue expansion
+8. With the help of links,crawler aage badta hai
 ```
 
 
