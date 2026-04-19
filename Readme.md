@@ -1,4 +1,4 @@
-# Chronicle Crawler
+# Web3 Crawler
 
 ```
 crawler/
