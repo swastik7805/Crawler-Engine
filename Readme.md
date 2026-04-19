@@ -59,7 +59,7 @@ Pure vector search can sometimes be "vague," and pure keyword search is too "rig
    Drizzle ORM cannot express HNSW WITH parameters, tsvector GENERATED
    ALWAYS AS columns, or trigram-specific GIN operator classes natively.
    The raw migration is the source of truth for those constructs.
-```
+
 
 # Pipeline Flow
 
