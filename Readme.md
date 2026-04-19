@@ -1,7 +1,7 @@
 # Chronicle Crawler
 
 ```
-chronicle-crawler/
+crawler/
 ├── src/
 │   ├── config/seeds.ts          → 22 curated Web3 sources (3 priority tiers)
 │   ├── db/
