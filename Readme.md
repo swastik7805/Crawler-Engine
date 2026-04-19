@@ -76,6 +76,16 @@ crawler/
 5. Discard trailing fragments under 50 words
 ```
 
+#### Indexer Flow
+```
+1. Atomically upsert a `crawled document` into PostgreSQL
+2. Insert new chunks in a single bulk INSERT
+3. Delete old chunks for this document (re-crawl scenario)
+4. If page body hasn't changed since last crawl (same hash), skip chunk deletion and re-insertion
+5. content_tsv (Content TsVector) is NOT set here — it's populated by the DB trigger `trg_chunks_tsv_update` on INSERT
+6. Chunks with NULL embeddings are excluded from the HNSW partial index
+```
+
 ## Normal DB index + GIN + HNSW
 ![alt text](./static/image.png)
 

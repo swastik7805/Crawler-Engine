@@ -18,3 +18,17 @@ export interface TextChunk {
   wordCount: number;
   chunkIndex: number;
 }
+
+export interface IndexResult {
+  documentId: number;
+  chunksInserted: number;
+  skipped: boolean;
+}
+
+export interface IndexDocumentParams {
+  sourceId: number;
+  url: string;
+  extracted: ExtractedContent;
+  textChunks: TextChunk[];
+  embeddings: number[][];
+}
