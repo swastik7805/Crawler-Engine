@@ -1,18 +1,13 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import pRetry, { AbortError } from 'p-retry';
 import { logger } from '../utils/logger.js';
+import { FetchResult } from '../types.ts/pipeline.js';
 
 const USER_AGENT ='TheChronicleBot/1.0 (Web3 search index; +https://auth-backend-fawn.vercel.app/bot)';
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 3;
 const MAX_CONTENT_BYTES = 5*1024*1024; // 5MB-skip large assets
 const ABORT_STATUS_CODES = new Set([400, 401, 403, 404, 410, 451]);
-
-export interface FetchResult {
-  html: string;
-  finalUrl: string;
-  statusCode: number;
-}
 
 // Servers ko dikhana ki real-browser/bot hai (Varna block kar dega)
 const httpClient: AxiosInstance = axios.create({

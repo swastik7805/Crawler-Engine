@@ -36,7 +36,9 @@ crawler/
    The raw migration is the source of truth for those constructs.
 ```
 
-# Crawler Flow
+# Pipeline Flow
+
+#### Crawler Flow
 ```
 1. Crawl page
 2. Store in documents
@@ -45,6 +47,21 @@ crawler/
 5. Trigger generates tsvector
 6. Background worker generates embedding
 7. Indexes make it searchable
+```
+
+#### Fetcher Flow
+```
+1. Retry (3x, exp backoff)
+2. robots.txt cache
+```
+
+#### Extractor Flow
+```
+1. Strip all noise elements
+2. Prefer high-signal content containers (article, main, .markdown-body)
+3. Fall back to <body> if no container matches
+4. Normalise whitespace for clean chunk input
+5. Collect internal links for crawl queue expansion
 ```
 
 
