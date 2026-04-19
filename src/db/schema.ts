@@ -137,7 +137,15 @@ export const documents = pgTable('documents',
  *      Index  : GIN trigram
  *      Query  : content % $query  (similarity threshold)
  *               or content ILIKE '%ethereum%' for partial match
+ *
+ *   GIN (tsvector), HNSW (vector), GIN (trgm) are defined in: src/db/migrations/0001_extensions_and_indexes.sql
+ *
+ *   Reason: Drizzle cannot express:
+ *    - HNSW WITH (m = 16, ef_construction = 64)
+ *    - GIN with gin_trgm_ops operator class
+ *    - Partial indexes (WHERE embedding IS NOT NULL)
  */
+
 export const chunks = pgTable('chunks',
   {
     id: serial('id').primaryKey(),
@@ -153,14 +161,12 @@ export const chunks = pgTable('chunks',
     // ── Strategy 1: Lexical ──────────────────────────────────────────────────
     /**
      * Weighted tsvector. Populated and kept current by the DB trigger:
-     *   `trg_chunks_tsv_update`  (see migration SQL)
+     *   `trg_chunks_tsv_update`  
      *
      * Weight breakdown:
      *   title        → 'A'  (4× boost in ts_rank)
      *   meta_keywords → 'B'  (2× boost)
      *   content      → 'C'  (1× boost)
-     *
-     * Do NOT set this from application code — the trigger owns it.
      */
     contentTsv: tsvector('content_tsv'),
 
@@ -173,7 +179,7 @@ export const chunks = pgTable('chunks',
      *   - Cohere  embed-english-v3.0
      *
      * Set to NULL until the embedding worker processes the chunk.
-     * HNSW index is partial: WHERE embedding IS NOT NULL (see migration SQL)
+     * HNSW index is partial: WHERE embedding IS NOT NULL
      */
     embedding: vector('embedding', { dimensions: 1536 }),
 
@@ -183,19 +189,8 @@ export const chunks = pgTable('chunks',
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
   },
   (t) => ({
-    /** Supports cascade delete and "all chunks for document X" queries */
     documentIdIdx: index('chunks_document_id_idx').on(t.documentId),
-    /** Supports "all chunks for URL X" — used in dedup on re-crawl */
     urlIdx: index('chunks_url_idx').on(t.url),
-    /**
-     * GIN (tsvector), HNSW (vector), GIN (trgm) are defined in:
-     *   src/db/migrations/0001_extensions_and_indexes.sql
-     *
-     * Reason: Drizzle cannot express:
-     *   - HNSW WITH (m = 16, ef_construction = 64)
-     *   - GIN with gin_trgm_ops operator class
-     *   - Partial indexes (WHERE embedding IS NOT NULL)
-     */
   })
 );
 
