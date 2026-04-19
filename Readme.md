@@ -69,7 +69,7 @@ crawler/
 
 
 ## Normal DB index + GIN + HNSW
-![alt text](image.png)
+![alt text](./static/image.png)
 
 ## DB Triggers
-![alt text](image-1.png)
+![alt text](./static/image-1.png)
